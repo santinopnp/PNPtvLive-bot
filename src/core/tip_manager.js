@@ -4,11 +4,23 @@ class TipManager {
         this.performerManager = performerManager;
         this.globalTips = [];
         this.paymentMethods = {
+            bold: {
+                name: 'Bold.co',
+                enabled: true
+            },
+            mercadopago: {
+                name: 'Mercado Pago',
+                enabled: true
+            },
             paypal: {
                 name: 'PayPal',
                 enabled: true,
                 processingFee: 0.029, // 2.9%
                 fixedFee: 30 // $0.30 COP
+            },
+            stripe: {
+                name: 'Stripe',
+                enabled: true
             }
         };
         
