@@ -19,17 +19,26 @@
   "author": "PNPtv Live",
   "license": "MIT",
   "dependencies": {
+    "@slack/webhook": "^7.0.5",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
     "moment": "^2.29.4",
     "node-cron": "^3.0.3",
+    "nodemailer": "^7.0.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "chai": "^5.2.0",
+    "mocha": "^11.7.0",
+    "nodemon": "^3.0.2",
+    "sinon": "^21.0.0",
+    "supertest": "^7.1.1"
   }
 }
