@@ -1,264 +1,1463 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SPEC-001: PNPtv Live Bot</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      margin: 1em;
-      line-height: 1.6;
-      background: #fdfdfd;
-      color: #222;
-    }
-    h1, h2, h3 {
-      color: #007ACC;
-    }
-    pre {
-      background: #f4f4f4;
-      padding: 1em;
-      overflow-x: auto;
-      border-left: 4px solid #ccc;
-    }
-    img {
-      max-width: 100%;
-      margin: 1em 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1em;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 0.5em;
-    }
-    th {
-      background: #f0f0f0;
-    }
-    @media (max-width: 600px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      td {
-        border: none;
-        border-bottom: 1px solid #ddd;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Bot Webex</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            background: #f7fafc;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border-left: 4px solid #48bb78;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .status-item.inactive {
+            border-left-color: #e53e3e;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .form-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 20px rgba(229, 62, 62, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+        
+        .btn-success:hover {
+            box-shadow: 0 5px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+        
+        .message-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        .message-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .message-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .message-item.disabled {
+            opacity: 0.6;
+            background: #edf2f7;
+        }
+        
+        .message-content {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .message-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .badge-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .scroll-container {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #edf2f7;
+        }
+        
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-track {
+            background: #edf2f7;
+            border-radius: 4px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
 </head>
 <body>
-<h1>SPEC-001: PNPtv Live Bot</h1>
-<img src="architecture_diagram.png" alt="Arquitectura del sistema" />
-<pre>= SPEC-001: Bot Unificado de Streaming Webex para PNPtv Live
-:sectnums:
-:toc:
+    <div id="root"></div>
 
-== Background
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const API_BASE = '/api';
+        
+        function App() {
+            const [config, setConfig] = useState({
+                messages: [],
+                isActive: false,
+                currentMeeting: null,
+                participantCount: 0,
+                autoAdmitEnabled: false
+            });
+            const [newMessage, setNewMessage] = useState('');
+            const [roomId, setRoomId] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [alert, setAlert] = useState(null);
+            
+            // Cargar configuración inicial
+            useEffect(() => {
+                loadConfig();
+                // Actualizar cada 30 segundos
+                const interval = setInterval(loadConfig, 30000);
+                return () => clearInterval(interval);
+            }, []);
+            
+            const loadConfig = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/config`);
+                    const data = await response.json();
+                    setConfig(data);
+                } catch (error) {
+                    showAlert('Error cargando configuración', 'error');
+                }
+            };
+            
+            const showAlert = (message, type = 'success') => {
+                setAlert({ message, type });
+                setTimeout(() => setAlert(null), 5000);
+            };
+            
+            const addMessage = async () => {
+                if (!newMessage.trim()) {
+                    showAlert('Por favor ingresa un mensaje', 'error');
+                    return;
+                }
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: newMessage })
+                    });
+                    
+                    if (response.ok) {
+                        setNewMessage('');
+                        await loadConfig();
+                        showAlert('Mensaje agregado exitosamente');
+                    } else {
+                        throw new Error('Error agregando mensaje');
+                    }
+                } catch (error) {
+                    showAlert('Error agregando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const toggleMessage = async (id, enabled) => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: !enabled })
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert(`Mensaje ${!enabled ? 'activado' : 'desactivado'}`);
+                    }
+                } catch (error) {
+                    showAlert('Error actualizando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const deleteMessage = async (id) => {
+                if (!confirm('¿Estás seguro de eliminar este mensaje?')) return;
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert('Mensaje eliminado');
+                    }
+                } catch (error) {
+                    showAlert('Error eliminando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const muteAll = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/mute-all`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Todos los participantes han sido muteados');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error muteando participantes', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const setMeeting = async () => {
+                if (!roomId.trim()) {
+                    showAlert('Por favor ingresa un Room ID', 'error');
+                    return;
+                }
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/set-meeting`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomId: roomId.trim() })
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert('Reunión establecida exitosamente');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error estableciendo reunión', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const sendTestMessage = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/test-message`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: '🤖 Mensaje de prueba del bot - Sistema funcionando correctamente' 
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Mensaje de prueba enviado');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error enviando mensaje de prueba', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const toggleAutoAdmit = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/toggle-auto-admit`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        await loadConfig();
+                        showAlert(result.message);
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error cambiando auto-admisión', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const admitAllFromLobby = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/admit-all-lobby`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showAlert(result.message);
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error admitiendo participantes', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const checkCameras = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/check-cameras`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Verificación de cámaras iniciada');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error verificando cámaras', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🎥 Control Bot Webex</h1>
+                        <p>Panel de control para gestionar tu reunión de Webex</p>
+                        
+                        <div className="status-bar">
+                            <div className={`status-item ${config.isActive ? '' : 'inactive'}`}>
+                                <strong>Estado:</strong> {config.isActive ? '🟢 Activo' : '🔴 Inactivo'}
+                            </div>
+                            <div className="status-item">
+                                <strong>Reunión:</strong> {config.currentMeeting ? '✅ En curso' : '❌ Sin reunión'}
+                            </div>
+                            <div className="status-item">
+                                <strong>Participantes:</strong> {config.participantCount}
+                            </div>
+                            <div className="status-item">
+                                <strong>Mensajes:</strong> {config.messages.filter(m => m.enabled).length} activos
+                            </div>
+                            <div className="status-item">
+                                <strong>Auto-admisión:</strong> {config.autoAdmitEnabled ? '🟢 Activa' : '🔴 Inactiva'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {alert && (
+                        <div className={`alert alert-${alert.type}`}>
+                            {alert.message}
+                        </div>
+                    )}
+                    
+                    <div className="grid">
+                        <div className="card">
+                            <h2>📝 Gestionar Mensajes Programados</h2>
+                            
+                            <div className="form-group">
+                                <label>Nuevo Mensaje:</label>
+                                <textarea
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Escribe aquí el mensaje que se enviará cada 30 minutos..."
+                                    disabled={loading}
+                                />
+                            </div>
+                            
+                            <button 
+                                className="btn"
+                                onClick={addMessage}
+                                disabled={loading || !newMessage.trim()}
+                            >
+                                ➕ Agregar Mensaje
+                            </button>
+                            
+                            <div className="message-list scroll-container">
+                                {config.messages.length === 0 ? (
+                                    <p style={{textAlign: 'center', color: '#718096', padding: '20px'}}>
+                                        No hay mensajes configurados
+                                    </p>
+                                ) : (
+                                    config.messages.map((message) => (
+                                        <div 
+                                            key={message.id} 
+                                            className={`message-item ${!message.enabled ? 'disabled' : ''}`}
+                                        >
+                                            <div className="message-content">
+                                                <span className={`badge ${message.enabled ? 'badge-success' : 'badge-danger'}`}>
+                                                    {message.enabled ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                                <p style={{marginTop: '10px'}}>{message.text}</p>
+                                            </div>
+                                            <div className="message-actions">
+                                                <button
+                                                    className="btn btn-small"
+                                                    onClick={() => toggleMessage(message.id, message.enabled)}
+                                                    disabled={loading}
+                                                >
+                                                    {message.enabled ? '⏸️ Desactivar' : '▶️ Activar'}
+                                                </button>
+                                                <button
+                                                    className="btn btn-danger btn-small"
+                                                    onClick={() => deleteMessage(message.id)}
+                                                    disabled={loading}
+                                                >
+                                                    🗑️ Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="card">
+                            <h2>🎛️ Controles de Reunión</h2>
+                            
+                            <div className="controls-grid">
+                                <button
+                                    className="btn"
+                                    onClick={checkCameras}
+                                    disabled={loading || !config.isActive}
+                                >
+                                    📹 Verificar Cámaras
+                                </button>
+                                
+                                <button
+                                    className="btn btn-success"
+                                    onClick={sendTestMessage}
+                                    disabled={loading || !config.isActive}
+                                >
+                                    💬 Mensaje de Prueba
+                                </button>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>🚪 Control de Lobby</h3>
+                                <div className="controls-grid">
+                                    <button
+                                        className={`btn ${config.autoAdmitEnabled ? 'btn-success' : ''}`}
+                                        onClick={toggleAutoAdmit}
+                                        disabled={loading}
+                                    >
+                                        {config.autoAdmitEnabled ? '🟢 Auto-admisión ON' : '🔴 Auto-admisión OFF'}
+                                    </button>
+                                    
+                                    <button
+                                        className="btn"
+                                        onClick={admitAllFromLobby}
+                                        disabled={loading || !config.isActive}
+                                    >
+                                        🚪 Admitir Todos del Lobby
+                                    </button>
+                                </div>
+                                <p style={{fontSize: '12px', color: '#718096', marginTop: '10px'}}>
+                                    Auto-admisión: Admite automáticamente a todos los participantes que lleguen al lobby.
+                                </p>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>🎯 Configurar Reunión</h3>
+                                <div className="form-group">
+                                    <label>ID de Sala (Room ID):</label>
+                                    <input
+                                        type="text"
+                                        value={roomId}
+                                        onChange={(e) => setRoomId(e.target.value)}
+                                        placeholder="Ingresa el Room ID de tu reunión..."
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            border: '2px solid #e2e8f0',
+                                            borderRadius: '10px',
+                                            fontSize: '14px',
+                                            transition: 'border-color 0.3s ease'
+                                        }}
+                                        disabled={loading}
+                                    />
+                                </div>
+                                <button
+                                    className="btn"
+                                    onClick={setMeeting}
+                                    disabled={loading || !roomId.trim()}
+                                >
+                                    🎥 Establecer Reunión
+                                </button>
+                            </div>
+                            
+                            <div style={{marginTop: '30px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>ℹ️ Funciones Automáticas</h3>
+                                <div style={{background: '#f7fafc', padding: '20px', borderRadius: '10px', lineHeight: '1.6'}}>
+                                    <ul style={{listStyle: 'none', padding: 0}}>
+                                        <li style={{marginBottom: '10px'}}>
+                                            ✅ <strong>Verificación de cámaras:</strong> Cada 5 minutos
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            ⚠️ <strong>Advertencias:</strong> 2 minutos para encender cámara
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            🚪 <strong>Expulsión automática:</strong> Por no tener cámara
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            🚪 <strong>Auto-admisión:</strong> Cada 30 segundos desde lobby
+                                        </li>
+                                        <li>
+                                            💬 <strong>Mensajes programados:</strong> Cada 30 minutos
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>📊 Estadísticas</h3>
+                                <div style={{background: '#f7fafc', padding: '20px', borderRadius: '10px'}}>
+                                    <p><strong>Mensajes totales:</strong> {config.messages.length}</p>
+                                    <p><strong>Mensajes activos:</strong> {config.messages.filter(m => m.enabled).length}</p>
+                                    <p><strong>Auto-admisión:</strong> {config.autoAdmitEnabled ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                                    <p><strong>Última actualización:</strong> {new Date().toLocaleTimeString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Bot Webex</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            background: #f7fafc;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border-left: 4px solid #48bb78;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .status-item.inactive {
+            border-left-color: #e53e3e;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .form-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 20px rgba(229, 62, 62, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+        
+        .btn-success:hover {
+            box-shadow: 0 5px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+        
+        .message-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        .message-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .message-item:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .message-item.disabled {
+            opacity: 0.6;
+            background: #edf2f7;
+        }
+        
+        .message-content {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .message-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .badge-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .scroll-container {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #edf2f7;
+        }
+        
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-track {
+            background: #edf2f7;
+            border-radius: 4px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-PNPtv Live es una plataforma de entretenimiento que renta espacios virtuales a performers para transmitir en vivo a suscriptores. La necesidad surge de automatizar y profesionalizar la operación de estos espacios, permitiendo:
-
-- Automatización de interacciones con Webex (ingreso al lobby, encendido de cámaras, mensajes automáticos).
-- Recepción de pagos tipo "tip" directamente al performer.
-- Soporte para múltiples pasarelas de pago, incluyendo:
-  - **PayPal** (internacional)
-  - **Bold.co** (Colombia)
-- Administración centralizada de múltiples performers, suscriptores y shows.
-- Integración con interfaces de usuario: Webex + Panel Web.
-
-El sistema existente estaba dividido en dos proyectos:
-- Un bot básico para automatización de reuniones Webex.
-- Un bot avanzado con gestión de performers y tips.
-
-Este diseño propone la **fusión de ambos sistemas** en una solución unificada, escalable y reutilizable para otros negocios similares.
-
-== Requirements
-
-=== Funcionales
-
-*Must Have*
-- Automatización de reuniones Webex:
-  - Admisión automática desde el lobby
-  - Verificación de cámara encendida
-  - Envío de mensajes programados
-- Comandos por Webex para:
-  - Ver estado del show (/status)
-  - Enviar tip (/tip)
-  - Suscribirse y desuscribirse (/join, /leave)
-- Soporte multi-performer:
-  - Registro, configuración y activación de performers
-  - Estadísticas individuales de cada show y tips
-- Recepción de tips mediante:
-  - PayPal
-  - Bold.co
-- Conversión automática COP/USD para PayPal.me
-- Webhooks para procesar transacciones Bold en tiempo real
-- Panel web con información del estado actual
-- Administración remota (vía comandos o API) de:
-  - Performers
-  - Estadísticas
-  - Tips
-- Mensajes directos personalizados a usuarios (seguimiento a tips)
-
-*Should Have*
-- Soporte para múltiples monedas (COP, USD)
-- Panel administrativo embebido sin necesidad de frontend compilado
-- Reportes diarios/semanales de actividad
-- Control de acceso para comandos administrativos (/admin)
-
-*Could Have*
-- Integración futura con Twitch o YouTube Live
-
-*Won't Have*
-- Streaming embebido (Webex se usa como plataforma externa)
-- Gestión de pagos centralizada (cada performer recibe tips directo)
-
-== Method
-
-=== Arquitectura General
-
-[plantuml, architecture, png]
-----
-@startuml
-package "PNPtv Live Bot" {
-  [Core Backend] --> [Webex API]
-  [Core Backend] --> [PayPal API]
-  [Core Backend] --> [Bold.co API]
-  [Core Backend] --> [Webhook Processor]
-  [Core Backend] --> [Panel Web (HTML)]
-  [Core Backend] --> [Bot de Webex]
-}
-
-actor Performer
-actor Viewer
-
-Viewer --> [Webex Meeting]
-Viewer --> [Bot de Webex]
-Viewer --> [Panel Web (HTML)]
-
-Performer --> [Core Backend]
-@enduml
-----
-
-=== Modelo de Datos
-
-==== Performer
-[source,json]
-----
-{
-  "id": "perf_17102025_ab12",
-  "name": "Performer X",
-  "email": "x@pnptvlive.com",
-  "paypalEmail": "x@paypal.com",
-  "boldId": "b1234567",
-  "settings": {
-    "currency": "COP",
-    "tipMinAmount": 10000,
-    "welcomeMessage": "¡Bienvenido!",
-    "tipMessage": "Gracias por tu apoyo"
-  },
-  "stats": {
-    "totalTips": 0,
-    "todayTips": 0,
-    "averageTip": 0,
-    "showCount": 0,
-    "subscriberCount": 0
-  },
-  "subscribers": Set<string>,
-  "tips": Tip[]
-}
-----
-
-==== Tip
-[source,json]
-----
-{
-  "id": "tip_17102025_a1b2c3",
-  "amount": 10000,
-  "message": "¡Gran show!",
-  "user": "viewer@correo.com",
-  "performer": "perf_17102025_ab12",
-  "paymentMethod": "paypal",
-  "paypalEmail": "x@paypal.com",
-  "currency": "COP",
-  "fees": {
-    "gross": 10000,
-    "fees": 500,
-    "net": 9500
-  },
-  "status": "pending",
-  "timestamp": ISODate,
-  "processedAt": ISODate,
-  "transactionId": string,
-  "failureReason": string
-}
-----
-
-==== Config Global
-[source,json]
-----
-{
-  "webhookSecret": "...",
-  "masterPasswordHash": "...",
-  "defaultCurrency": "COP",
-  "exchangeRate": {
-    "COP_USD": 4000
-  }
-}
-----
-
-=== Rutas API (REST)
-
-[cols="1,3,1,2"]
-|===
-| Método | Ruta | Autenticación | Descripción
-
-| GET    | /                         | -         | Renderiza el panel web principal (`index.html`)
-| POST   | /webhook/bold             | HMAC      | Recibe pagos de Bold.co (confirma tips)
-| POST   | /webhook/webex            | Token     | Recibe comandos desde Webex (mensajes)
-| GET    | /admin/status             | password  | Resumen del sistema (métricas, estado)
-| GET    | /admin/performers         | password  | Lista de performers y stats básicos
-| GET    | /admin/tips               | password  | Lista de tips recientes
-| POST   | /admin/switch-performer   | password  | Cambia performer activo para una sala
-| POST   | /admin/reset-performer    | password  | Reinicia stats de un performer
-| GET    | /api/tip/:id              | opcional  | Obtiene detalle de un tip por ID (usado por Web)
-| GET    | /api/metrics              | -         | Devuelve métricas agregadas (`metrics.json`)
-| GET    | /api/sessions             | -         | Lista sesiones activas (`sessions.json`)
-|===
-
-=== Comandos Interactivos en index.html
-
-==== Secciones del Panel Web
-
-1. **Estado del sistema (Dashboard)**
-   - Total de tips, shows activos, TRM actual
-   - Lista de sesiones en vivo (desde `/api/sessions`)
-   - Botón: 🔁 Actualizar métricas (refresca panel con `/api/metrics`)
-
-2. **Control del Performer**
-   - Selector de performer activo
-   - Botón: ▶️ `Iniciar transmisión` → llama `/admin/switch-performer`
-   - Botón: 🔁 `Resetear stats` → confirma y llama `/admin/reset-performer`
-
-3. **Tips Recientes**
-   - Lista en tiempo real de tips con:
-     - usuario, monto, método, estado
-   - Botón: 📋 `Ver detalle` → llama `/api/tip/:id`
-
-4. **Comandos Rápidos (desde navegador)**
-   - Botón: 🔄 `/status` → simula comando Webex
-   - Botón: 💬 `/tip` → genera enlaces de pago para un monto rápido
-   - Campos input: monto, mensaje (solo para prueba)
-
-==== Seguridad
-- Acciones protegidas con `masterPassword` vía prompt o token temporal.
-- Se puede cachear en `localStorage` con expiración.
-
-==== Estilo
-- Solo HTML + JS (sin compiladores)
-- Opcionalmente: Bootstrap o Tailwind vía CDN
-</pre>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const API_BASE = '/api';
+        
+        function App() {
+            const [config, setConfig] = useState({
+                messages: [],
+                isActive: false,
+                currentMeeting: null,
+                participantCount: 0,
+                autoAdmitEnabled: false
+            });
+            const [newMessage, setNewMessage] = useState('');
+            const [roomId, setRoomId] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [alert, setAlert] = useState(null);
+            
+            // Cargar configuración inicial
+            useEffect(() => {
+                loadConfig();
+                // Actualizar cada 30 segundos
+                const interval = setInterval(loadConfig, 30000);
+                return () => clearInterval(interval);
+            }, []);
+            
+            const loadConfig = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/config`);
+                    const data = await response.json();
+                    setConfig(data);
+                } catch (error) {
+                    showAlert('Error cargando configuración', 'error');
+                }
+            };
+            
+            const showAlert = (message, type = 'success') => {
+                setAlert({ message, type });
+                setTimeout(() => setAlert(null), 5000);
+            };
+            
+            const addMessage = async () => {
+                if (!newMessage.trim()) {
+                    showAlert('Por favor ingresa un mensaje', 'error');
+                    return;
+                }
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: newMessage })
+                    });
+                    
+                    if (response.ok) {
+                        setNewMessage('');
+                        await loadConfig();
+                        showAlert('Mensaje agregado exitosamente');
+                    } else {
+                        throw new Error('Error agregando mensaje');
+                    }
+                } catch (error) {
+                    showAlert('Error agregando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const toggleMessage = async (id, enabled) => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ enabled: !enabled })
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert(`Mensaje ${!enabled ? 'activado' : 'desactivado'}`);
+                    }
+                } catch (error) {
+                    showAlert('Error actualizando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const deleteMessage = async (id) => {
+                if (!confirm('¿Estás seguro de eliminar este mensaje?')) return;
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/messages/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert('Mensaje eliminado');
+                    }
+                } catch (error) {
+                    showAlert('Error eliminando mensaje', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const muteAll = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/mute-all`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Todos los participantes han sido muteados');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error muteando participantes', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const setMeeting = async () => {
+                if (!roomId.trim()) {
+                    showAlert('Por favor ingresa un Room ID', 'error');
+                    return;
+                }
+                
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/set-meeting`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomId: roomId.trim() })
+                    });
+                    
+                    if (response.ok) {
+                        await loadConfig();
+                        showAlert('Reunión establecida exitosamente');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error estableciendo reunión', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const sendTestMessage = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/test-message`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: '🤖 Mensaje de prueba del bot - Sistema funcionando correctamente' 
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Mensaje de prueba enviado');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error enviando mensaje de prueba', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const toggleAutoAdmit = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/toggle-auto-admit`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        await loadConfig();
+                        showAlert(result.message);
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error cambiando auto-admisión', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const admitAllFromLobby = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/admit-all-lobby`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showAlert(result.message);
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error admitiendo participantes', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            const checkCameras = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`${API_BASE}/controls/check-cameras`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Verificación de cámaras iniciada');
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.error, 'error');
+                    }
+                } catch (error) {
+                    showAlert('Error verificando cámaras', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🎥 Control Bot Webex</h1>
+                        <p>Panel de control para gestionar tu reunión de Webex</p>
+                        
+                        <div className="status-bar">
+                            <div className={`status-item ${config.isActive ? '' : 'inactive'}`}>
+                                <strong>Estado:</strong> {config.isActive ? '🟢 Activo' : '🔴 Inactivo'}
+                            </div>
+                            <div className="status-item">
+                                <strong>Reunión:</strong> {config.currentMeeting ? '✅ En curso' : '❌ Sin reunión'}
+                            </div>
+                            <div className="status-item">
+                                <strong>Participantes:</strong> {config.participantCount}
+                            </div>
+                            <div className="status-item">
+                                <strong>Mensajes:</strong> {config.messages.filter(m => m.enabled).length} activos
+                            </div>
+                            <div className="status-item">
+                                <strong>Auto-admisión:</strong> {config.autoAdmitEnabled ? '🟢 Activa' : '🔴 Inactiva'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {alert && (
+                        <div className={`alert alert-${alert.type}`}>
+                            {alert.message}
+                        </div>
+                    )}
+                    
+                    <div className="grid">
+                        <div className="card">
+                            <h2>📝 Gestionar Mensajes Programados</h2>
+                            
+                            <div className="form-group">
+                                <label>Nuevo Mensaje:</label>
+                                <textarea
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    placeholder="Escribe aquí el mensaje que se enviará cada 30 minutos..."
+                                    disabled={loading}
+                                />
+                            </div>
+                            
+                            <button 
+                                className="btn"
+                                onClick={addMessage}
+                                disabled={loading || !newMessage.trim()}
+                            >
+                                ➕ Agregar Mensaje
+                            </button>
+                            
+                            <div className="message-list scroll-container">
+                                {config.messages.length === 0 ? (
+                                    <p style={{textAlign: 'center', color: '#718096', padding: '20px'}}>
+                                        No hay mensajes configurados
+                                    </p>
+                                ) : (
+                                    config.messages.map((message) => (
+                                        <div 
+                                            key={message.id} 
+                                            className={`message-item ${!message.enabled ? 'disabled' : ''}`}
+                                        >
+                                            <div className="message-content">
+                                                <span className={`badge ${message.enabled ? 'badge-success' : 'badge-danger'}`}>
+                                                    {message.enabled ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                                <p style={{marginTop: '10px'}}>{message.text}</p>
+                                            </div>
+                                            <div className="message-actions">
+                                                <button
+                                                    className="btn btn-small"
+                                                    onClick={() => toggleMessage(message.id, message.enabled)}
+                                                    disabled={loading}
+                                                >
+                                                    {message.enabled ? '⏸️ Desactivar' : '▶️ Activar'}
+                                                </button>
+                                                <button
+                                                    className="btn btn-danger btn-small"
+                                                    onClick={() => deleteMessage(message.id)}
+                                                    disabled={loading}
+                                                >
+                                                    🗑️ Eliminar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="card">
+                            <h2>🎛️ Controles de Reunión</h2>
+                            
+                            <div className="controls-grid">
+                                <button
+                                    className="btn"
+                                    onClick={checkCameras}
+                                    disabled={loading || !config.isActive}
+                                >
+                                    📹 Verificar Cámaras
+                                </button>
+                                
+                                <button
+                                    className="btn btn-success"
+                                    onClick={sendTestMessage}
+                                    disabled={loading || !config.isActive}
+                                >
+                                    💬 Mensaje de Prueba
+                                </button>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>🚪 Control de Lobby</h3>
+                                <div className="controls-grid">
+                                    <button
+                                        className={`btn ${config.autoAdmitEnabled ? 'btn-success' : ''}`}
+                                        onClick={toggleAutoAdmit}
+                                        disabled={loading}
+                                    >
+                                        {config.autoAdmitEnabled ? '🟢 Auto-admisión ON' : '🔴 Auto-admisión OFF'}
+                                    </button>
+                                    
+                                    <button
+                                        className="btn"
+                                        onClick={admitAllFromLobby}
+                                        disabled={loading || !config.isActive}
+                                    >
+                                        🚪 Admitir Todos del Lobby
+                                    </button>
+                                </div>
+                                <p style={{fontSize: '12px', color: '#718096', marginTop: '10px'}}>
+                                    Auto-admisión: Admite automáticamente a todos los participantes que lleguen al lobby.
+                                </p>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>🎯 Configurar Reunión</h3>
+                                <div className="form-group">
+                                    <label>ID de Sala (Room ID):</label>
+                                    <input
+                                        type="text"
+                                        value={roomId}
+                                        onChange={(e) => setRoomId(e.target.value)}
+                                        placeholder="Ingresa el Room ID de tu reunión..."
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            border: '2px solid #e2e8f0',
+                                            borderRadius: '10px',
+                                            fontSize: '14px',
+                                            transition: 'border-color 0.3s ease'
+                                        }}
+                                        disabled={loading}
+                                    />
+                                </div>
+                                <button
+                                    className="btn"
+                                    onClick={setMeeting}
+                                    disabled={loading || !roomId.trim()}
+                                >
+                                    🎥 Establecer Reunión
+                                </button>
+                            </div>
+                            
+                            <div style={{marginTop: '30px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>ℹ️ Funciones Automáticas</h3>
+                                <div style={{background: '#f7fafc', padding: '20px', borderRadius: '10px', lineHeight: '1.6'}}>
+                                    <ul style={{listStyle: 'none', padding: 0}}>
+                                        <li style={{marginBottom: '10px'}}>
+                                            ✅ <strong>Verificación de cámaras:</strong> Cada 5 minutos
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            ⚠️ <strong>Advertencias:</strong> 2 minutos para encender cámara
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            🚪 <strong>Expulsión automática:</strong> Por no tener cámara
+                                        </li>
+                                        <li style={{marginBottom: '10px'}}>
+                                            🚪 <strong>Auto-admisión:</strong> Cada 30 segundos desde lobby
+                                        </li>
+                                        <li>
+                                            💬 <strong>Mensajes programados:</strong> Cada 30 minutos
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div style={{marginTop: '20px'}}>
+                                <h3 style={{marginBottom: '15px', color: '#4a5568'}}>📊 Estadísticas</h3>
+                                <div style={{background: '#f7fafc', padding: '20px', borderRadius: '10px'}}>
+                                    <p><strong>Mensajes totales:</strong> {config.messages.length}</p>
+                                    <p><strong>Mensajes activos:</strong> {config.messages.filter(m => m.enabled).length}</p>
+                                    <p><strong>Auto-admisión:</strong> {config.autoAdmitEnabled ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                                    <p><strong>Última actualización:</strong> {new Date().toLocaleTimeString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
 </body>
 </html>
