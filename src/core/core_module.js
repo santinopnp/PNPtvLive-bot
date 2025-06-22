@@ -1,12 +1,12 @@
-﻿// core.js - MÃ³dulo principal del Multi-Performer Bot
+// core.js - Modulo principal del Multi-Performer Bot
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const PerformerManager = require('./performer_manager');
 const TipManager = require('./tip_manager');
-const WebhookHandler = require('./webhook_handler');
-const Routes = require('./routes_module');
-const Utils = require('./utils_module');
+const WebhookHandler = require('../webhooks/webhook_handler');
+const Routes = require('../routes/routes_module');
+const Utils = require('../utils/utils_module');
 
 class MultiPerformerBotCore {
     constructor() {

@@ -1,10 +1,10 @@
 // index.js - Punto de entrada del Bot-PNPtv-Live
-// Los módulos están en la carpeta ./bot/
+// Los módulos están en la carpeta ./src
 
 const path = require('path');
 
-// Importar el módulo principal desde la carpeta bot
-const MultiPerformerBotCore = require('./bot/core_module');
+// Importar el módulo principal desde la carpeta de código fuente
+const MultiPerformerBotCore = require('./core/core_module');
 
 // Configurar logging
 const logInfo = (message) => {
@@ -55,7 +55,7 @@ function showStartupBanner() {
     console.log('===============================================');
     console.log('🤖 Multi-Performer Webex Bot');
     console.log('📅 Versión: 2.0.0');
-    console.log('📁 Módulos desde: ./bot/');
+    console.log('📁 Módulos desde: ./src/');
     console.log('🌐 Plataforma:', process.platform);
     console.log('📊 Node.js:', process.version);
     console.log('⏰ Inicio:', new Date().toLocaleString('es-CO'));
@@ -67,12 +67,12 @@ function showStartupBanner() {
 function verifyProjectStructure() {
     const fs = require('fs');
     const requiredFiles = [
-        './bot/core_module.js',
-        './bot/performer_manager.js',
-        './bot/tip_manager.js',
-        './bot/webhook_handler.js',
-        './bot/routes_module.js',
-        './bot/utils_module.js'
+        path.join(__dirname, 'core/core_module.js'),
+        path.join(__dirname, 'core/performer_manager.js'),
+        path.join(__dirname, 'core/tip_manager.js'),
+        path.join(__dirname, 'webhooks/webhook_handler.js'),
+        path.join(__dirname, 'routes/routes_module.js'),
+        path.join(__dirname, 'utils/utils_module.js')
     ];
     
     logInfo('Verificando estructura del proyecto...');
@@ -80,7 +80,7 @@ function verifyProjectStructure() {
     for (const file of requiredFiles) {
         if (!fs.existsSync(file)) {
             logError(`Archivo requerido no encontrado: ${file}`);
-            console.log('💡 Asegúrate de que todos los módulos estén en la carpeta ./bot/');
+            console.log('💡 Asegúrate de que todos los módulos estén en sus carpetas correspondientes dentro de /src');
             process.exit(1);
         }
     }
@@ -164,7 +164,7 @@ async function startBot() {
         
         console.log();
         console.log('🔧 Posibles soluciones:');
-        console.log('1. Verifica que todos los archivos estén en ./bot/');
+        console.log('1. Verifica que todos los archivos estén en las carpetas de /src');
         console.log('2. Revisa las variables en el archivo .env');
         console.log('3. Asegúrate de que las dependencias estén instaladas (npm install)');
         console.log('4. Verifica que el puerto no esté en uso');
