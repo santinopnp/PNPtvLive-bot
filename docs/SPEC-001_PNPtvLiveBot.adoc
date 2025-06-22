@@ -1,0 +1,207 @@
+= SPEC-001: Bot Unificado de Streaming Webex para PNPtv Live
+:sectnums:
+:toc:
+
+== Background
+
+PNPtv Live es una plataforma de entretenimiento que renta espacios virtuales a performers para transmitir en vivo a suscriptores. La necesidad surge de automatizar y profesionalizar la operación de estos espacios, permitiendo:
+
+- Automatización de interacciones con Webex (ingreso al lobby, encendido de cámaras, mensajes automáticos).
+- Recepción de pagos tipo "tip" directamente al performer.
+- Soporte para múltiples pasarelas de pago, incluyendo:
+  - **PayPal** (internacional)
+  - **Bold.co** (Colombia)
+- Administración centralizada de múltiples performers, suscriptores y shows.
+- Integración con interfaces de usuario: Webex + Panel Web.
+
+El sistema existente estaba dividido en dos proyectos:
+- Un bot básico para automatización de reuniones Webex.
+- Un bot avanzado con gestión de performers y tips.
+
+Este diseño propone la **fusión de ambos sistemas** en una solución unificada, escalable y reutilizable para otros negocios similares.
+
+== Requirements
+
+=== Funcionales
+
+*Must Have*
+- Automatización de reuniones Webex:
+  - Admisión automática desde el lobby
+  - Verificación de cámara encendida
+  - Envío de mensajes programados
+- Comandos por Webex para:
+  - Ver estado del show (/status)
+  - Enviar tip (/tip)
+  - Suscribirse y desuscribirse (/join, /leave)
+- Soporte multi-performer:
+  - Registro, configuración y activación de performers
+  - Estadísticas individuales de cada show y tips
+- Recepción de tips mediante:
+  - PayPal
+  - Bold.co
+- Conversión automática COP/USD para PayPal.me
+- Webhooks para procesar transacciones Bold en tiempo real
+- Panel web con información del estado actual
+- Administración remota (vía comandos o API) de:
+  - Performers
+  - Estadísticas
+  - Tips
+- Mensajes directos personalizados a usuarios (seguimiento a tips)
+
+*Should Have*
+- Soporte para múltiples monedas (COP, USD)
+- Panel administrativo embebido sin necesidad de frontend compilado
+- Reportes diarios/semanales de actividad
+- Control de acceso para comandos administrativos (/admin)
+
+*Could Have*
+- Integración futura con Twitch o YouTube Live
+
+*Won't Have*
+- Streaming embebido (Webex se usa como plataforma externa)
+- Gestión de pagos centralizada (cada performer recibe tips directo)
+
+== Method
+
+=== Arquitectura General
+
+[plantuml, architecture, png]
+----
+@startuml
+package "PNPtv Live Bot" {
+  [Core Backend] --> [Webex API]
+  [Core Backend] --> [PayPal API]
+  [Core Backend] --> [Bold.co API]
+  [Core Backend] --> [Webhook Processor]
+  [Core Backend] --> [Panel Web (HTML)]
+  [Core Backend] --> [Bot de Webex]
+}
+
+actor Performer
+actor Viewer
+
+Viewer --> [Webex Meeting]
+Viewer --> [Bot de Webex]
+Viewer --> [Panel Web (HTML)]
+
+Performer --> [Core Backend]
+@enduml
+----
+
+=== Modelo de Datos
+
+==== Performer
+[source,json]
+----
+{
+  "id": "perf_17102025_ab12",
+  "name": "Performer X",
+  "email": "x@pnptvlive.com",
+  "paypalEmail": "x@paypal.com",
+  "boldId": "b1234567",
+  "settings": {
+    "currency": "COP",
+    "tipMinAmount": 10000,
+    "welcomeMessage": "¡Bienvenido!",
+    "tipMessage": "Gracias por tu apoyo"
+  },
+  "stats": {
+    "totalTips": 0,
+    "todayTips": 0,
+    "averageTip": 0,
+    "showCount": 0,
+    "subscriberCount": 0
+  },
+  "subscribers": Set<string>,
+  "tips": Tip[]
+}
+----
+
+==== Tip
+[source,json]
+----
+{
+  "id": "tip_17102025_a1b2c3",
+  "amount": 10000,
+  "message": "¡Gran show!",
+  "user": "viewer@correo.com",
+  "performer": "perf_17102025_ab12",
+  "paymentMethod": "paypal",
+  "paypalEmail": "x@paypal.com",
+  "currency": "COP",
+  "fees": {
+    "gross": 10000,
+    "fees": 500,
+    "net": 9500
+  },
+  "status": "pending",
+  "timestamp": ISODate,
+  "processedAt": ISODate,
+  "transactionId": string,
+  "failureReason": string
+}
+----
+
+==== Config Global
+[source,json]
+----
+{
+  "webhookSecret": "...",
+  "masterPasswordHash": "...",
+  "defaultCurrency": "COP",
+  "exchangeRate": {
+    "COP_USD": 4000
+  }
+}
+----
+
+=== Rutas API (REST)
+
+[cols="1,3,1,2"]
+|===
+| Método | Ruta | Autenticación | Descripción
+
+| GET    | /                         | -         | Renderiza el panel web principal (`index.html`)
+| POST   | /webhook/bold             | HMAC      | Recibe pagos de Bold.co (confirma tips)
+| POST   | /webhook/webex            | Token     | Recibe comandos desde Webex (mensajes)
+| GET    | /admin/status             | password  | Resumen del sistema (métricas, estado)
+| GET    | /admin/performers         | password  | Lista de performers y stats básicos
+| GET    | /admin/tips               | password  | Lista de tips recientes
+| POST   | /admin/switch-performer   | password  | Cambia performer activo para una sala
+| POST   | /admin/reset-performer    | password  | Reinicia stats de un performer
+| GET    | /api/tip/:id              | opcional  | Obtiene detalle de un tip por ID (usado por Web)
+| GET    | /api/metrics              | -         | Devuelve métricas agregadas (`metrics.json`)
+| GET    | /api/sessions             | -         | Lista sesiones activas (`sessions.json`)
+|===
+
+=== Comandos Interactivos en index.html
+
+==== Secciones del Panel Web
+
+1. **Estado del sistema (Dashboard)**
+   - Total de tips, shows activos, TRM actual
+   - Lista de sesiones en vivo (desde `/api/sessions`)
+   - Botón: 🔁 Actualizar métricas (refresca panel con `/api/metrics`)
+
+2. **Control del Performer**
+   - Selector de performer activo
+   - Botón: ▶️ `Iniciar transmisión` → llama `/admin/switch-performer`
+   - Botón: 🔁 `Resetear stats` → confirma y llama `/admin/reset-performer`
+
+3. **Tips Recientes**
+   - Lista en tiempo real de tips con:
+     - usuario, monto, método, estado
+   - Botón: 📋 `Ver detalle` → llama `/api/tip/:id`
+
+4. **Comandos Rápidos (desde navegador)**
+   - Botón: 🔄 `/status` → simula comando Webex
+   - Botón: 💬 `/tip` → genera enlaces de pago para un monto rápido
+   - Campos input: monto, mensaje (solo para prueba)
+
+==== Seguridad
+- Acciones protegidas con `masterPassword` vía prompt o token temporal.
+- Se puede cachear en `localStorage` con expiración.
+
+==== Estilo
+- Solo HTML + JS (sin compiladores)
+- Opcionalmente: Bootstrap o Tailwind vía CDN
