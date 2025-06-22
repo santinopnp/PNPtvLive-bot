@@ -1,0 +1,23 @@
+services:
+  - name: pnptv-bot
+    startCommand: node server.js
+    buildCommand: npm install
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: WEBHOOK_SECRET
+        fromEnv: true
+      - key: MASTER_PASSWORD_HASH
+        fromEnv: true
+      - key: BOLD_API_KEY
+        fromEnv: true
+      - key: PAYPAL_CLIENT_ID
+        fromEnv: true
+      - key: PAYPAL_SECRET
+        fromEnv: true
+      - key: DEFAULT_CURRENCY
+        value: COP
+      - key: EXCHANGE_RATE_COP_USD
+        value: "4000"
