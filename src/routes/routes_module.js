@@ -1,4 +1,6 @@
 // routes.js - Manejo de rutas HTTP
+const createSecureWebhooks = require('../secure-webhooks');
+
 class Routes {
     constructor(core) {
         this.core = core;
@@ -8,6 +10,7 @@ class Routes {
     setupRoutes(app) {
         // Webhook routes
         app.post('/webhook', (req, res) => this.core.webhookHandler.handleWebhook(req, res));
+        app.use(createSecureWebhooks(this.core));
         
         // Dashboard routes
         app.get('/dashboard', (req, res) => res.redirect('/performer'));

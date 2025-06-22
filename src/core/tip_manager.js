@@ -6,10 +6,23 @@ class TipManager {
         
         // NUEVO: Múltiples procesadores de pago
         this.paymentMethods = {
+            bold: {
+                name: 'Bold.co',
+                enabled: true
+            },
+            mercadopago: {
+                name: 'Mercado Pago',
+                enabled: true
+            },
             paypal: {
                 name: 'PayPal',
                 enabled: true,
                 processingFee: 0.029, // 2.9%
+                fixedFee: 30 // $0.30 COP
+            },
+            stripe: {
+                name: 'Stripe',
+                enabled: true
                 fixedFee: 30, // $0.30 COP
                 currency: ['USD', 'COP'],
                 countries: ['CO', 'US', 'MX', 'AR']
@@ -40,6 +53,7 @@ class TipManager {
                 currency: ['USD', 'COP', 'ARS', 'MXN'],
                 countries: ['US', 'CO', 'AR', 'MX', 'BR'],
                 description: 'Procesador global'
+
             }
         };
         

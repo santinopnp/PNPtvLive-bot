@@ -1,6 +1,6 @@
 services:
   - name: pnptv-bot
-    startCommand: node server.js
+    startCommand: node src/index.js
     buildCommand: npm install
     envVars:
       - key: NODE_ENV
