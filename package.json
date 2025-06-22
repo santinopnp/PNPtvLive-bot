@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "meeting-bot": "node src/multi-meeting-bot.js"
   },
   "keywords": [
     "webex",
@@ -25,6 +26,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "moment": "^2.29.4",
+    "node-cron": "^3.0.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
