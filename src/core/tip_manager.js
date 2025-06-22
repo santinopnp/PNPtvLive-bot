@@ -1,25 +1,57 @@
-// tipManager.js - Gestión de tips y pagos
+// tipManager.js - Gestión de tips y pagos MULTI-PROCESADOR
 class TipManager {
     constructor(performerManager) {
         this.performerManager = performerManager;
         this.globalTips = [];
+        
+        // NUEVO: Múltiples procesadores de pago
         this.paymentMethods = {
             paypal: {
                 name: 'PayPal',
                 enabled: true,
                 processingFee: 0.029, // 2.9%
-                fixedFee: 30 // $0.30 COP
+                fixedFee: 30, // $0.30 COP
+                currency: ['USD', 'COP'],
+                countries: ['CO', 'US', 'MX', 'AR']
+            },
+            bold: {
+                name: 'Bold.co',
+                enabled: true,
+                processingFee: 0.0349, // 3.49%
+                fixedFee: 0,
+                currency: ['COP'],
+                countries: ['CO'],
+                description: 'Procesador colombiano'
+            },
+            mercadopago: {
+                name: 'MercadoPago',
+                enabled: true,
+                processingFee: 0.0559, // 5.59%
+                fixedFee: 0,
+                currency: ['COP', 'ARS', 'MXN', 'BRL'],
+                countries: ['CO', 'AR', 'MX', 'BR', 'CL', 'PE', 'UY'],
+                description: 'Para toda Latinoamérica'
+            },
+            stripe: {
+                name: 'Stripe',
+                enabled: true,
+                processingFee: 0.029, // 2.9%
+                fixedFee: 30,
+                currency: ['USD', 'COP', 'ARS', 'MXN'],
+                countries: ['US', 'CO', 'AR', 'MX', 'BR'],
+                description: 'Procesador global'
             }
         };
         
-        console.log('✅ TipManager inicializado');
+        console.log('✅ TipManager Multi-Procesador inicializado');
+        console.log(`💳 Procesadores disponibles: ${Object.keys(this.paymentMethods).join(', ')}`);
     }
     
-    // Crear nuevo tip
+    // NUEVO: Crear tip con múltiples opciones de pago
     createTip(data) {
-        const { amount, message, userEmail, performerId } = data;
+        const { amount, message, userEmail, performerId, preferredProcessor } = data;
         
-        // Validaciones
+        // Validaciones existentes
         if (!amount || amount <= 0) {
             throw new Error('Monto inválido');
         }
@@ -37,7 +69,14 @@ class TipManager {
             throw new Error('Email de usuario inválido');
         }
         
-        // Crear objeto tip
+        // NUEVO: Determinar procesadores disponibles para el performer
+        const availableProcessors = this.getAvailableProcessors(performer);
+        
+        if (availableProcessors.length === 0) {
+            throw new Error('No hay procesadores de pago configurados para este performer');
+        }
+        
+        // Crear objeto tip MEJORADO
         const tip = {
             id: this.generateTipId(),
             amount: parseInt(amount),
@@ -45,62 +84,187 @@ class TipManager {
             user: userEmail.trim().toLowerCase(),
             performer: performerId,
             performerName: performer.name,
-            paypalEmail: performer.paypalEmail,
             timestamp: new Date(),
             processed: false,
             processedAt: null,
-            paymentMethod: 'paypal',
             currency: performer.settings.currency,
-            fees: this.calculateFees(amount),
-            status: 'pending'
+            status: 'pending',
+            
+            // NUEVO: Información de procesadores
+            availableProcessors,
+            preferredProcessor: preferredProcessor || availableProcessors[0],
+            paymentUrls: {},
+            fees: {},
+            
+            // NUEVO: Información específica por procesador
+            processorData: {}
         };
+        
+        // NUEVO: Generar URLs y fees para todos los procesadores disponibles
+        this.generatePaymentData(tip, performer);
         
         // Agregar a listas
         this.globalTips.push(tip);
         this.performerManager.addTipToPerformer(performerId, tip);
         
-        console.log(`💰 Nuevo tip creado: $${amount} para ${performer.name} de ${userEmail}`);
+        console.log(`💰 Nuevo tip multi-procesador creado: $${amount} para ${performer.name} de ${userEmail}`);
+        console.log(`💳 Procesadores disponibles: ${availableProcessors.join(', ')}`);
+        
         return tip;
     }
     
-    // Generar ID único para tip
-    generateTipId() {
-        return `tip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // NUEVO: Obtener procesadores disponibles para un performer
+    getAvailableProcessors(performer) {
+        const available = [];
+        
+        Object.entries(this.paymentMethods).forEach(([key, method]) => {
+            if (!method.enabled) return;
+            
+            // Verificar si el performer tiene configuración para este procesador
+            const hasConfig = this.hasProcessorConfig(performer, key);
+            
+            // Verificar si soporta la moneda del performer
+            const supportsCurrency = method.currency.includes(performer.settings.currency);
+            
+            if (hasConfig && supportsCurrency) {
+                available.push(key);
+            }
+        });
+        
+        return available;
     }
     
-    // Calcular fees de procesamiento
-    calculateFees(amount) {
-        const paypalFee = this.paymentMethods.paypal;
-        const percentageFee = amount * paypalFee.processingFee;
-        const totalFee = percentageFee + paypalFee.fixedFee;
+    // NUEVO: Verificar si performer tiene configuración para procesador
+    hasProcessorConfig(performer, processor) {
+        switch (processor) {
+            case 'paypal':
+                return !!(performer.paypalEmail);
+            case 'bold':
+                return !!(performer.boldEmail || performer.boldAccountId);
+            case 'mercadopago':
+                return !!(performer.mercadoPagoEmail || performer.mercadoPagoAccessToken);
+            case 'stripe':
+                return !!(performer.stripeAccountId || performer.stripeEmail);
+            default:
+                return false;
+        }
+    }
+    
+    // NUEVO: Generar datos de pago para todos los procesadores
+    generatePaymentData(tip, performer) {
+        tip.availableProcessors.forEach(processor => {
+            // Calcular fees específicos del procesador
+            tip.fees[processor] = this.calculateFees(tip.amount, processor);
+            
+            // Generar URL de pago específica
+            tip.paymentUrls[processor] = this.createPaymentUrl(tip, performer, processor);
+            
+            // Datos específicos del procesador
+            tip.processorData[processor] = this.getProcessorSpecificData(tip, performer, processor);
+        });
+    }
+    
+    // MEJORADO: Calcular fees por procesador
+    calculateFees(amount, processor = 'paypal') {
+        const method = this.paymentMethods[processor];
+        if (!method) return { gross: amount, fees: 0, net: amount };
+        
+        const percentageFee = amount * method.processingFee;
+        const totalFee = percentageFee + method.fixedFee;
         
         return {
             gross: amount,
             fees: Math.round(totalFee),
             net: amount - Math.round(totalFee),
-            feePercentage: paypalFee.processingFee * 100
+            feePercentage: method.processingFee * 100,
+            processor,
+            processorName: method.name
         };
     }
     
-    // Crear URL de pago PayPal
-    createPayPalPaymentUrl(tip) {
-        const baseUrl = process.env.RAILWAY_STATIC_URL || 'https://your-domain.railway.app';
-        return `${baseUrl}/paypal-payment?tip=${tip.id}`;
+    // NUEVO: Crear URL de pago por procesador
+    createPaymentUrl(tip, performer, processor) {
+        const baseUrl = process.env.RAILWAY_STATIC_URL || process.env.BASE_URL || 'https://your-domain.com';
+        
+        switch (processor) {
+            case 'paypal':
+                return `${baseUrl}/payment/paypal?tip=${tip.id}`;
+            case 'bold':
+                return `${baseUrl}/payment/bold?tip=${tip.id}`;
+            case 'mercadopago':
+                return `${baseUrl}/payment/mercadopago?tip=${tip.id}`;
+            case 'stripe':
+                return `${baseUrl}/payment/stripe?tip=${tip.id}`;
+            default:
+                return `${baseUrl}/payment?tip=${tip.id}&processor=${processor}`;
+        }
     }
     
-    // Crear link directo de PayPal.me
-    createPayPalMeUrl(tip) {
-        const paypalUsername = tip.paypalEmail.split('@')[0];
-        const amount = tip.amount;
-        const currency = tip.currency === 'COP' ? 'USD' : tip.currency; // PayPal.me no soporta COP directamente
-        
-        // Convertir COP a USD aproximadamente (esto debería ser dinámico)
-        const convertedAmount = tip.currency === 'COP' ? Math.round(amount / 4000) : amount;
-        
-        return `https://paypal.me/${paypalUsername}/${convertedAmount}${currency}`;
+    // NUEVO: Datos específicos por procesador
+    getProcessorSpecificData(tip, performer, processor) {
+        switch (processor) {
+            case 'paypal':
+                return {
+                    email: performer.paypalEmail,
+                    paypalMeUrl: this.createPayPalMeUrl(tip, performer),
+                    description: `Tip para ${performer.name}`
+                };
+                
+            case 'bold':
+                return {
+                    email: performer.boldEmail,
+                    accountId: performer.boldAccountId,
+                    description: `Tip para ${performer.name} - ${tip.message}`,
+                    reference: `tip-${tip.id}`,
+                    webhookUrl: `${process.env.BASE_URL}/webhook/bold`
+                };
+                
+            case 'mercadopago':
+                return {
+                    email: performer.mercadoPagoEmail,
+                    accessToken: performer.mercadoPagoAccessToken,
+                    description: `Tip para ${performer.name}`,
+                    externalReference: `tip-${tip.id}`,
+                    notificationUrl: `${process.env.BASE_URL}/webhook/mercadopago`
+                };
+                
+            case 'stripe':
+                return {
+                    accountId: performer.stripeAccountId,
+                    email: performer.stripeEmail,
+                    description: `Tip para ${performer.name}`,
+                    metadata: {
+                        tipId: tip.id,
+                        performerId: performer.id,
+                        performerName: performer.name
+                    }
+                };
+                
+            default:
+                return {};
+        }
     }
     
-    // Procesar tip exitoso
+    // MEJORADO: PayPal.me URL con mejor manejo
+    createPayPalMeUrl(tip, performer) {
+        if (!performer.paypalEmail) return null;
+        
+        const paypalUsername = performer.paypalEmail.split('@')[0];
+        let amount = tip.amount;
+        let currency = tip.currency;
+        
+        // PayPal.me manejo de monedas
+        if (currency === 'COP') {
+            // Convertir COP a USD (tasa aproximada)
+            const rate = parseFloat(process.env.COP_TO_USD_RATE) || 4000;
+            amount = Math.round(amount / rate);
+            currency = 'USD';
+        }
+        
+        return `https://paypal.me/${paypalUsername}/${amount}${currency}`;
+    }
+    
+    // NUEVO: Procesar tip por procesador específico
     processTipSuccess(tipId, transactionData = {}) {
         const tip = this.findTip(tipId);
         
@@ -112,44 +276,204 @@ class TipManager {
             throw new Error('Tip ya procesado');
         }
         
-        // Actualizar tip
+        // Actualizar tip con información del procesador
         tip.processed = true;
         tip.processedAt = new Date();
         tip.status = 'completed';
         tip.transactionId = transactionData.transactionId || null;
+        tip.processedBy = transactionData.processor || 'unknown';
+        tip.processorResponse = transactionData.processorResponse || {};
         
-        // Actualizar estadísticas del performer
-        const performer = this.performerManager.getPerformer(tip.performer);
-        if (performer) {
-            this.performerManager.addTipToPerformer(tip.performer, tip);
+        // Calcular fees reales si se proporcionan
+        if (transactionData.actualFees) {
+            tip.actualFees = transactionData.actualFees;
         }
         
-        console.log(`✅ Tip procesado exitosamente: ${tipId}`);
+        console.log(`✅ Tip procesado exitosamente por ${tip.processedBy}: ${tipId}`);
         return tip;
     }
     
-    // Marcar tip como fallido
-    processTipFailure(tipId, reason = 'Pago fallido') {
-        const tip = this.findTip(tipId);
-        
-        if (!tip) {
-            throw new Error('Tip no encontrado');
-        }
-        
-        tip.status = 'failed';
-        tip.failureReason = reason;
-        tip.failedAt = new Date();
-        
-        console.log(`❌ Tip fallido: ${tipId} - ${reason}`);
-        return tip;
+    // NUEVO: Obtener información de procesador
+    getProcessorInfo(processor) {
+        return this.paymentMethods[processor] || null;
     }
     
-    // Encontrar tip por ID
+    // NUEVO: Obtener procesadores por país
+    getProcessorsByCountry(countryCode) {
+        const available = [];
+        
+        Object.entries(this.paymentMethods).forEach(([key, method]) => {
+            if (method.enabled && method.countries.includes(countryCode)) {
+                available.push({
+                    key,
+                    name: method.name,
+                    description: method.description,
+                    currencies: method.currency,
+                    fees: {
+                        percentage: method.processingFee * 100,
+                        fixed: method.fixedFee
+                    }
+                });
+            }
+        });
+        
+        return available;
+    }
+    
+    // NUEVO: Obtener estadísticas por procesador
+    getTipStatsByProcessor(performerId = null) {
+        let tips = performerId 
+            ? this.getPerformerTips(performerId, 10000)
+            : this.globalTips;
+        
+        const stats = {};
+        
+        // Inicializar stats para todos los procesadores
+        Object.keys(this.paymentMethods).forEach(processor => {
+            stats[processor] = {
+                count: 0,
+                amount: 0,
+                fees: 0,
+                net: 0,
+                average: 0
+            };
+        });
+        
+        // Calcular estadísticas
+        tips.filter(tip => tip.processed).forEach(tip => {
+            const processor = tip.processedBy || 'unknown';
+            
+            if (!stats[processor]) {
+                stats[processor] = { count: 0, amount: 0, fees: 0, net: 0, average: 0 };
+            }
+            
+            stats[processor].count++;
+            stats[processor].amount += tip.amount;
+            
+            // Usar fees reales si están disponibles, sino usar calculados
+            const fees = tip.actualFees || tip.fees[processor] || { fees: 0, net: tip.amount };
+            stats[processor].fees += fees.fees;
+            stats[processor].net += fees.net;
+        });
+        
+        // Calcular promedios
+        Object.keys(stats).forEach(processor => {
+            if (stats[processor].count > 0) {
+                stats[processor].average = Math.round(stats[processor].amount / stats[processor].count);
+            }
+        });
+        
+        return stats;
+    }
+    
+    // NUEVO: Generar reporte comparativo de procesadores
+    generateProcessorReport(performerId = null) {
+        const stats = this.getTipStatsByProcessor(performerId);
+        const processorInfo = {};
+        
+        Object.entries(this.paymentMethods).forEach(([key, method]) => {
+            processorInfo[key] = {
+                name: method.name,
+                enabled: method.enabled,
+                description: method.description,
+                currencies: method.currency,
+                countries: method.countries,
+                fees: {
+                    percentage: method.processingFee * 100,
+                    fixed: method.fixedFee
+                },
+                stats: stats[key] || { count: 0, amount: 0, fees: 0, net: 0, average: 0 }
+            };
+        });
+        
+        return {
+            summary: processorInfo,
+            recommendations: this.getProcessorRecommendations(stats),
+            generatedAt: new Date()
+        };
+    }
+    
+    // NUEVO: Recomendaciones de procesadores
+    getProcessorRecommendations(stats) {
+        const recommendations = [];
+        
+        // Buscar el procesador con mejores tarifas
+        let bestFeeRatio = { processor: null, ratio: 0 };
+        let mostUsed = { processor: null, count: 0 };
+        
+        Object.entries(stats).forEach(([processor, data]) => {
+            if (data.count > 0) {
+                const feeRatio = data.net / data.amount;
+                
+                if (feeRatio > bestFeeRatio.ratio) {
+                    bestFeeRatio = { processor, ratio: feeRatio };
+                }
+                
+                if (data.count > mostUsed.count) {
+                    mostUsed = { processor, count: data.count };
+                }
+            }
+        });
+        
+        if (bestFeeRatio.processor) {
+            recommendations.push({
+                type: 'best_fees',
+                processor: bestFeeRatio.processor,
+                reason: `Mejor ratio de fees (${(bestFeeRatio.ratio * 100).toFixed(1)}% neto)`
+            });
+        }
+        
+        if (mostUsed.processor) {
+            recommendations.push({
+                type: 'most_popular',
+                processor: mostUsed.processor,
+                reason: `Más usado por los usuarios (${mostUsed.count} tips)`
+            });
+        }
+        
+        return recommendations;
+    }
+    
+    // NUEVO: Configurar procesador para performer
+    configureProcessorForPerformer(performerId, processor, config) {
+        const performer = this.performerManager.getPerformer(performerId);
+        if (!performer) {
+            throw new Error('Performer no encontrado');
+        }
+        
+        switch (processor) {
+            case 'paypal':
+                performer.paypalEmail = config.email;
+                break;
+            case 'bold':
+                performer.boldEmail = config.email;
+                performer.boldAccountId = config.accountId;
+                break;
+            case 'mercadopago':
+                performer.mercadoPagoEmail = config.email;
+                performer.mercadoPagoAccessToken = config.accessToken;
+                break;
+            case 'stripe':
+                performer.stripeAccountId = config.accountId;
+                performer.stripeEmail = config.email;
+                break;
+            default:
+                throw new Error('Procesador no válido');
+        }
+        
+        console.log(`💳 ${processor} configurado para ${performer.name}`);
+        return true;
+    }
+    
+    // EXISTENTES: Mantener métodos originales para compatibilidad
+    generateTipId() {
+        return `tip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
     findTip(tipId) {
         return this.globalTips.find(tip => tip.id === tipId);
     }
     
-    // Obtener tips del performer activo
     getActivePerformerTips(limit = 20) {
         const activePerformer = this.performerManager.getActivePerformer();
         
@@ -160,7 +484,6 @@ class TipManager {
         return activePerformer.tips.slice(-limit).reverse();
     }
     
-    // Obtener tips por performer
     getPerformerTips(performerId, limit = 50) {
         const performer = this.performerManager.getPerformer(performerId);
         
@@ -171,7 +494,6 @@ class TipManager {
         return performer.tips.slice(-limit).reverse();
     }
     
-    // Obtener tips por estado
     getTipsByStatus(status, limit = 100) {
         return this.globalTips
             .filter(tip => tip.status === status)
@@ -179,7 +501,30 @@ class TipManager {
             .reverse();
     }
     
-    // Obtener estadísticas de tips
+    getTotalTips() {
+        return this.globalTips
+            .filter(tip => tip.processed)
+            .reduce((sum, tip) => sum + tip.amount, 0);
+    }
+    
+    getRecentTips(limit = 10) {
+        return this.globalTips
+            .slice(-limit)
+            .reverse()
+            .map(tip => ({
+                id: tip.id,
+                amount: tip.amount,
+                message: tip.message,
+                user: tip.user,
+                performerName: tip.performerName,
+                timestamp: tip.timestamp,
+                processed: tip.processed,
+                status: tip.status,
+                processedBy: tip.processedBy || 'unknown'
+            }));
+    }
+    
+    // MEJORADO: Estadísticas incluyendo procesadores
     getTipStats(performerId = null) {
         let tips;
         
@@ -194,7 +539,7 @@ class TipManager {
         const todayTips = this.getTipsFromDate(tips, new Date());
         const monthlyTips = this.getTipsFromDate(tips, new Date(new Date().setDate(1)));
         
-        return {
+        const stats = {
             total: {
                 count: tips.length,
                 amount: tips.reduce((sum, tip) => sum + (tip.processed ? tip.amount : 0), 0)
@@ -211,11 +556,15 @@ class TipManager {
                 ? Math.round(processedTips.reduce((sum, tip) => sum + tip.amount, 0) / processedTips.length)
                 : 0,
             pending: tips.filter(tip => tip.status === 'pending').length,
-            failed: tips.filter(tip => tip.status === 'failed').length
+            failed: tips.filter(tip => tip.status === 'failed').length,
+            
+            // NUEVO: Stats por procesador
+            byProcessor: this.getTipStatsByProcessor(performerId)
         };
+        
+        return stats;
     }
     
-    // Obtener tips desde una fecha
     getTipsFromDate(tips, date) {
         const startDate = new Date(date);
         startDate.setHours(0, 0, 0, 0);
@@ -223,31 +572,27 @@ class TipManager {
         return tips.filter(tip => new Date(tip.timestamp) >= startDate);
     }
     
-    // Obtener total de tips globales
-    getTotalTips() {
-        return this.globalTips
-            .filter(tip => tip.processed)
-            .reduce((sum, tip) => sum + tip.amount, 0);
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
     }
     
-    // Obtener tips recientes globales
-    getRecentTips(limit = 10) {
-        return this.globalTips
-            .slice(-limit)
-            .reverse()
-            .map(tip => ({
-                id: tip.id,
-                amount: tip.amount,
-                message: tip.message,
-                user: tip.user,
-                performerName: tip.performerName,
-                timestamp: tip.timestamp,
-                processed: tip.processed,
-                status: tip.status
-            }));
+    // Mantener métodos existentes para compatibilidad
+    processTipFailure(tipId, reason = 'Pago fallido') {
+        const tip = this.findTip(tipId);
+        
+        if (!tip) {
+            throw new Error('Tip no encontrado');
+        }
+        
+        tip.status = 'failed';
+        tip.failureReason = reason;
+        tip.failedAt = new Date();
+        
+        console.log(`❌ Tip fallido: ${tipId} - ${reason}`);
+        return tip;
     }
     
-    // Buscar tips
     searchTips(query, performerId = null) {
         let tips = performerId 
             ? this.getPerformerTips(performerId, 1000)
@@ -259,99 +604,11 @@ class TipManager {
             tip.message.toLowerCase().includes(searchTerm) ||
             tip.user.toLowerCase().includes(searchTerm) ||
             tip.performerName.toLowerCase().includes(searchTerm) ||
-            tip.id.toLowerCase().includes(searchTerm)
+            tip.id.toLowerCase().includes(searchTerm) ||
+            (tip.processedBy && tip.processedBy.toLowerCase().includes(searchTerm))
         );
     }
     
-    // Generar reporte de tips
-    generateTipReport(performerId = null, dateRange = null) {
-        let tips = performerId 
-            ? this.getPerformerTips(performerId, 10000)
-            : this.globalTips;
-        
-        // Filtrar por rango de fechas si se proporciona
-        if (dateRange && dateRange.start && dateRange.end) {
-            const startDate = new Date(dateRange.start);
-            const endDate = new Date(dateRange.end);
-            
-            tips = tips.filter(tip => {
-                const tipDate = new Date(tip.timestamp);
-                return tipDate >= startDate && tipDate <= endDate;
-            });
-        }
-        
-        const stats = this.getTipStats(performerId);
-        const topTippers = this.getTopTippers(tips);
-        const dailyBreakdown = this.getDailyBreakdown(tips);
-        
-        return {
-            summary: stats,
-            topTippers,
-            dailyBreakdown,
-            totalTips: tips.length,
-            generatedAt: new Date()
-        };
-    }
-    
-    // Obtener mejores tippers
-    getTopTippers(tips, limit = 10) {
-        const tipperStats = {};
-        
-        tips.filter(tip => tip.processed).forEach(tip => {
-            if (!tipperStats[tip.user]) {
-                tipperStats[tip.user] = {
-                    user: tip.user,
-                    totalAmount: 0,
-                    tipCount: 0,
-                    averageTip: 0
-                };
-            }
-            
-            tipperStats[tip.user].totalAmount += tip.amount;
-            tipperStats[tip.user].tipCount++;
-        });
-        
-        // Calcular promedio y ordenar
-        const tippers = Object.values(tipperStats)
-            .map(tipper => ({
-                ...tipper,
-                averageTip: Math.round(tipper.totalAmount / tipper.tipCount)
-            }))
-            .sort((a, b) => b.totalAmount - a.totalAmount)
-            .slice(0, limit);
-        
-        return tippers;
-    }
-    
-    // Obtener breakdown diario
-    getDailyBreakdown(tips) {
-        const dailyStats = {};
-        
-        tips.filter(tip => tip.processed).forEach(tip => {
-            const date = new Date(tip.timestamp).toDateString();
-            
-            if (!dailyStats[date]) {
-                dailyStats[date] = {
-                    date,
-                    count: 0,
-                    amount: 0
-                };
-            }
-            
-            dailyStats[date].count++;
-            dailyStats[date].amount += tip.amount;
-        });
-        
-        return Object.values(dailyStats).sort((a, b) => new Date(a.date) - new Date(b.date));
-    }
-    
-    // Validar email
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-    
-    // Limpiar tips antiguos (opcional, para mantenimiento)
     cleanupOldTips(daysOld = 90) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
@@ -365,7 +622,6 @@ class TipManager {
         return removed;
     }
     
-    // Exportar tips (para backup)
     exportTips(performerId = null) {
         const tips = performerId 
             ? this.getPerformerTips(performerId, 10000)
@@ -375,7 +631,8 @@ class TipManager {
             tips,
             exportedAt: new Date(),
             performerId,
-            totalTips: tips.length
+            totalTips: tips.length,
+            processorStats: this.getTipStatsByProcessor(performerId)
         };
     }
 }
